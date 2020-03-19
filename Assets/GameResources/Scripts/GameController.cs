@@ -8,7 +8,7 @@ using Photon.Realtime;
 /// <summary>
 /// Игровой менеджер
 /// </summary>
-public class GameManager : MonoBehaviourPunCallbacks
+public class GameController : MonoBehaviourPunCallbacks
 {
     private const string NAME_SCENE_MENU = "Menu";
 
