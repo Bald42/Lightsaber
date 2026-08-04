@@ -1,6 +1,6 @@
 using UnityEngine.SceneManagement;
 
-namespace Loader
+namespace Lightsaber.Core.Loading
 {
     public struct ScenesLoader
     {
