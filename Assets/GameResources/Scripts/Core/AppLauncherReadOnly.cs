@@ -11,7 +11,6 @@ namespace Lightsaber.Core
 
 		public void Initialize()
 		{
-			Debug.LogError($"<color=yellow>AppLauncherReadOnly Initialize</color>");
 			IsGameReady = true;
 			GameReadyEvent?.Invoke();
 		}

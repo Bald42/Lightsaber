@@ -1,5 +1,10 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using Lightsaber.Cheats;
 using Zenject;
 using Lightsaber.Network;
+using UnityEngine;
 
 namespace Lightsaber.Core
 {
@@ -17,6 +22,27 @@ namespace Lightsaber.Core
 			Container
 				.BindInterfacesAndSelfTo<AppLauncherReadOnly>()
 				.AsSingle();
+
+			BindCheats();
+		}
+		
+		private void BindCheats()
+		{
+			if (!Debug.isDebugBuild)
+				return;
+
+			SRDebug.Init();
+
+			IEnumerable<Type> tabs = AppDomain.CurrentDomain
+				.GetAssemblies()
+				.SelectMany(asm => asm
+					.GetTypes()
+					.Where(type => type.IsSubclassOf(typeof(CheatTab))));
+
+			foreach (Type type in tabs)
+				Container.BindInterfacesAndSelfTo(type).AsSingle();
+
+			Container.BindInterfacesAndSelfTo<CheatController>().AsSingle();
 		}
 	}
 }
