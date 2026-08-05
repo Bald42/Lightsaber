@@ -2,14 +2,17 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Lightsaber.Cheats;
-using Zenject;
 using Lightsaber.Network;
+using Mirror;
 using UnityEngine;
+using Zenject;
 
 namespace Lightsaber.Core
 {
 	public class GameInstaller : MonoInstaller
 	{
+		[SerializeField] private CustomNetworkManager _networkManagerPrefab;
+
 		public override void InstallBindings()
 		{
 			// 1. Биндим менеджер ролей (Zenject сам подтянет IInitializable)
@@ -17,7 +20,20 @@ namespace Lightsaber.Core
 				.BindInterfacesAndSelfTo<NetworkRoleManager>()
 				.AsSingle();
 
-			// 2. Биндим AppLauncherReadOnly ПОСЛЕДНИМ
+			// 2. Биндим контроллер подключения (закроет INetworkConnectionController, INetworkConnectionControllerReadOnly и IDisposable)
+			Container
+				.BindInterfacesAndSelfTo<NetworkConnectionController>()
+				.AsSingle();
+
+			// 3. Инстанцируем и биндим Mirror NetworkManager из префаба
+			Container
+				.Bind<NetworkManager>()
+				.To<CustomNetworkManager>()
+				.FromComponentInNewPrefab(_networkManagerPrefab)
+				.AsSingle()
+				.NonLazy();
+
+			// 4. Биндим AppLauncherReadOnly ПОСЛЕДНИМ
 			// Он гарантированно вызовется после того, как заинитятся все менеджеры выше
 			Container
 				.BindInterfacesAndSelfTo<AppLauncherReadOnly>()
@@ -25,7 +41,7 @@ namespace Lightsaber.Core
 
 			BindCheats();
 		}
-		
+
 		private void BindCheats()
 		{
 			if (!Debug.isDebugBuild)
