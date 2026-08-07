@@ -1,4 +1,5 @@
 using System;
+using ParrelSync;
 using UnityEngine;
 using Zenject;
 
@@ -29,7 +30,14 @@ namespace Lightsaber.Network
         private void DetermineRole()
         {
 #if UNITY_EDITOR
-            SetRole(NetworkRole.Host);
+            if (ClonesManager.IsClone())
+            {
+                SetRole(NetworkRole.Client);
+            }
+            else
+            {
+                SetRole(NetworkRole.Host);
+            }
 #elif UNITY_ANDROID || UNITY_IOS
             SetRole(NetworkRole.Client);
 #else

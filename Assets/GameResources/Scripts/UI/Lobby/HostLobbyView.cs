@@ -7,6 +7,7 @@ namespace Lightsaber.Network.UI
 	public class HostLobbyView : MonoBehaviour
 	{
 		[SerializeField] private TextMeshProUGUI _pinText;
+		[SerializeField] private TextMeshProUGUI _ipText;
 		[SerializeField] private TextMeshProUGUI _amountPlayersText;
 
 		[Inject] private INetworkConnectionControllerReadOnly _connectionController;
@@ -16,7 +17,6 @@ namespace Lightsaber.Network.UI
 			_connectionController.OnServerStartedEvent += OnServerStartedHandler;
 			_connectionController.OnPlayerCountChangedEvent += OnPlayerCountChangedHandler;
 
-			// Первичная вычитка состояния, если хост уже запущен до включения UI
 			RefreshDisplay();
 		}
 
@@ -31,6 +31,7 @@ namespace Lightsaber.Network.UI
 			if (_connectionController.IsServerStarted)
 			{
 				SetPinText(_connectionController.CurrentPinCode);
+				SetIpText(_connectionController.CurrentIpAddress);
 			}
 
 			UpdatePlayerCountDisplay(_connectionController.ConnectedPlayersCount);
@@ -39,6 +40,7 @@ namespace Lightsaber.Network.UI
 		private void OnServerStartedHandler(ServerStartedEvent serverStartedEvent)
 		{
 			SetPinText(serverStartedEvent.PinCode);
+			SetIpText(serverStartedEvent.IpAddress);
 			UpdatePlayerCountDisplay(_connectionController.ConnectedPlayersCount);
 		}
 
@@ -55,11 +57,19 @@ namespace Lightsaber.Network.UI
 			}
 		}
 
+		private void SetIpText(string ipAddress)
+		{
+			if (_ipText != null)
+			{
+				_ipText.text = $"IP: {ipAddress}";
+			}
+		}
+
 		private void UpdatePlayerCountDisplay(int count)
 		{
 			if (_amountPlayersText != null)
 			{
-				_amountPlayersText.text = $"Игроков в лобби: {count}";
+				_amountPlayersText.text = $"Players in lobby: {count}";
 			}
 		}
 	}

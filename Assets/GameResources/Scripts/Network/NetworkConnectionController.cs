@@ -12,7 +12,7 @@ namespace Lightsaber.Network
 		public string IpAddress;
 		public string PinCode;
 	}
-
+	
 	public class NetworkConnectionController : INetworkConnectionController, IInitializable, IDisposable
 	{
 		private readonly NetworkManager _mirrorNetworkManager;
@@ -23,12 +23,17 @@ namespace Lightsaber.Network
 			"192.168.1.",
 			"192.168.0.",
 			"192.168.43.",
-			"172.20.10."
+			"172.20.10.",
+			"127.0.0."
 		};
 
-		public bool IsConnecting { get; private set; }
+		// Разделенные флаги состояний
 		public bool IsServerStarted { get; private set; }
+		public bool IsClientConnecting { get; private set; }
+		public bool IsClientConnected { get; private set; }
+
 		public string CurrentPinCode { get; private set; }
+		public string CurrentIpAddress { get; private set; }
 		public int ConnectedPlayersCount { get; private set; }
 
 		public event Action<ServerStartedEvent> OnServerStartedEvent;
@@ -49,9 +54,16 @@ namespace Lightsaber.Network
 		{
 			if (_mirrorNetworkManager is CustomNetworkManager customManager)
 			{
+				// Серверные подписки
 				customManager.OnServerConnected += OnPlayerConnected;
 				customManager.OnServerDisconnected += OnPlayerDisconnected;
+
+				// Клиентские подписки
+				customManager.OnClientConnected += OnClientConnectHandler;
+				customManager.OnClientDisconnected += OnClientDisconnectHandler;
 			}
+			
+			AddCurrentPinCode();
 			
 			if (_networkRoleManager.CurrentRole == NetworkRole.Host)
 			{
@@ -70,49 +82,71 @@ namespace Lightsaber.Network
 			_mirrorNetworkManager.StartHost();
 
 			ConnectedPlayersCount = 0;
-
-			string localIp = NetworkCodeUtility.GetLocalIPAddress();
-			CurrentPinCode = NetworkCodeUtility.IpToPin(localIp);
+			
 			IsServerStarted = true;
 
 			OnServerStartedEvent?.Invoke(new ServerStartedEvent
 			{
-				IpAddress = localIp,
+				IpAddress = CurrentIpAddress,
 				PinCode = CurrentPinCode
 			});
 		}
 
+		private void AddCurrentPinCode()
+		{
+			CurrentIpAddress = NetworkCodeUtility.GetLocalIPAddress();
+			CurrentPinCode = NetworkCodeUtility.IpToPin(CurrentIpAddress);
+		}
+		
 		public void ConnectByPin(string pin)
 		{
-			if (_networkRoleManager.CurrentRole != NetworkRole.None || IsConnecting)
+			string upperPin = pin.Trim().ToUpper();
+
+			// Проверка: если клиент уже в процессе коннекта — игнорим повторные клики
+			if (IsClientConnecting)
 			{
+				Debug.LogWarning("[NetworkConnectionController] Connection attempt already in progress...");
 				return;
 			}
 
-			if (string.IsNullOrEmpty(pin) || pin.Length != 4)
+			if (string.IsNullOrEmpty(upperPin) || upperPin.Length != 4)
 			{
-				OnConnectionFailedEvent?.Invoke("Невалидная длина PIN-кода");
+				OnConnectionFailedEvent?.Invoke("Invalid PIN length");
 				return;
 			}
 
-			string targetIp = FindValidIpForPin(pin);
+			string targetIp = FindValidIpForPin(upperPin);
 
 			if (string.IsNullOrEmpty(targetIp))
 			{
-				OnConnectionFailedEvent?.Invoke("Не удалось расшифровать PIN-код");
+				OnConnectionFailedEvent?.Invoke("Failed to decode PIN");
 				return;
 			}
 
-			IsConnecting = true;
+			// Если был старый коннект — сбрасываем
+			if (IsClientConnected)
+			{
+				_mirrorNetworkManager.StopClient();
+			}
+
+			IsClientConnecting = true;
+			IsClientConnected = false;
 			_networkRoleManager.SetRole(NetworkRole.Client);
 
 			_mirrorNetworkManager.networkAddress = targetIp;
+			Debug.Log($"<color=green>[NetworkConnectionController]</color> Client connecting to {targetIp}...");
+			
 			_mirrorNetworkManager.StartClient();
+		}
+
+		public string GetTargetIp()
+		{
+			return _mirrorNetworkManager != null ? _mirrorNetworkManager.networkAddress : string.Empty;
 		}
 
 		public void Disconnect()
 		{
-			if (_networkRoleManager.CurrentRole == NetworkRole.None && !IsConnecting)
+			if (_networkRoleManager.CurrentRole == NetworkRole.None)
 			{
 				return;
 			}
@@ -125,13 +159,31 @@ namespace Lightsaber.Network
 			{
 				_mirrorNetworkManager.StopClient();
 			}
-
-			_networkRoleManager.SetRole(NetworkRole.None);
-			IsConnecting = false;
+			
 			IsServerStarted = false;
+			IsClientConnecting = false;
+			IsClientConnected = false;
+			
 			CurrentPinCode = string.Empty;
+			CurrentIpAddress = string.Empty;
 			ConnectedPlayersCount = 0;
 
+			OnClientDisconnectedEvent?.Invoke();
+		}
+
+		private void OnClientConnectHandler()
+		{
+			IsClientConnecting = false;
+			IsClientConnected = true;
+			Debug.Log($"<color=green>[NetworkConnectionController]</color> Client connected!");
+			OnClientConnectedEvent?.Invoke();
+		}
+
+		private void OnClientDisconnectHandler()
+		{
+			IsClientConnecting = false;
+			IsClientConnected = false;
+			Debug.Log($"<color=orange>[NetworkConnectionController]</color> Client disconnected.");
 			OnClientDisconnectedEvent?.Invoke();
 		}
 
@@ -153,6 +205,9 @@ namespace Lightsaber.Network
 			{
 				customManager.OnServerConnected -= OnPlayerConnected;
 				customManager.OnServerDisconnected -= OnPlayerDisconnected;
+
+				customManager.OnClientConnected -= OnClientConnectHandler;
+				customManager.OnClientDisconnected -= OnClientDisconnectHandler;
 			}
 			Disconnect();
 		}

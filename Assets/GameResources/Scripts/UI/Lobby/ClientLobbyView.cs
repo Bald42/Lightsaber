@@ -1,3 +1,4 @@
+using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -9,12 +10,20 @@ namespace Lightsaber.Network.UI
 	{
 		[Header("Input Controls")]
 		[SerializeField] private TMP_InputField _pinInputField;
-		[SerializeField] private Button _playButton;
+		[SerializeField] private Button _connectButton;
+		[SerializeField] private Button _startGameButton;
 
 		[Header("Status Displays")]
 		[SerializeField] private TextMeshProUGUI _statusText;
+		[SerializeField] private TextMeshProUGUI _targetIpText;
+
+		[Header("Settings")]
+		[SerializeField] private float _connectionTimeoutSeconds = 5f;
 
 		[Inject] private INetworkConnectionController _connectionController;
+
+		private Coroutine _timeoutCoroutine;
+		private bool _isConnectingAttempt; // Флаг: крутится ли прямо сейчас таймер подключения
 
 		private void OnEnable()
 		{
@@ -27,12 +36,17 @@ namespace Lightsaber.Network.UI
 				_pinInputField.onValueChanged.AddListener(OnPinValueChanged);
 			}
 
-			if (_playButton != null)
+			if (_connectButton != null)
 			{
-				_playButton.onClick.AddListener(OnConnectButtonClicked);
+				_connectButton.onClick.AddListener(OnConnectButtonClicked);
 			}
 
-			ResetUi();
+			if (_startGameButton != null)
+			{
+				_startGameButton.onClick.AddListener(OnStartGameButtonClicked);
+			}
+
+			CheckCurrentConnectionState();
 		}
 
 		private void OnDisable()
@@ -46,78 +60,185 @@ namespace Lightsaber.Network.UI
 				_pinInputField.onValueChanged.RemoveListener(OnPinValueChanged);
 			}
 
-			if (_playButton != null)
+			if (_connectButton != null)
 			{
-				_playButton.onClick.RemoveListener(OnConnectButtonClicked);
+				_connectButton.onClick.RemoveListener(OnConnectButtonClicked);
 			}
+
+			if (_startGameButton != null)
+			{
+				_startGameButton.onClick.RemoveListener(OnStartGameButtonClicked);
+			}
+
+			StopTimeoutTimer();
 		}
 
 		private void OnPinValueChanged(string value)
 		{
+			if (_pinInputField != null && _pinInputField.text != value.ToUpper())
+			{
+				_pinInputField.text = value.ToUpper();
+			}
+
 			ClearError();
 		}
 
 		private void OnConnectButtonClicked()
 		{
-			if (_pinInputField == null)
-			{
-				return;
-			}
+			if (_pinInputField == null) return;
 
-			if (_pinInputField.text.Length != 4)
+			string pin = _pinInputField.text.Trim().ToUpper();
+
+			if (pin.Length != 4)
 			{
 				UpdateStatus("Invalid PIN...");
 				return;
 			}
 
-			if (_connectionController.IsConnecting)
-			{
-				UpdateStatus("Connecting in progress...");
-				return;
-			}
-
-			string pin = _pinInputField.text.Trim();
-
-			SetConnectingState(true);
-			UpdateStatus("Connecting to server...");
+			_isConnectingAttempt = true;
+			SetConnectButtonState(false);
 
 			_connectionController.ConnectByPin(pin);
+
+			if (_targetIpText != null && _connectionController is NetworkConnectionController controller)
+			{
+				_targetIpText.text = $"IP: {controller.GetTargetIp()}";
+			}
+
+			StartTimeoutTimer();
+		}
+
+		private void OnStartGameButtonClicked()
+		{
+			Debug.Log("<color=green>[ClientLobbyView]</color> Start Game button clicked from Client.");
+			if (LobbyPlayerNetwork.LocalInstance != null)
+			{
+				LobbyPlayerNetwork.LocalInstance.RequestStartGame("GameScene");
+			}
 		}
 
 		private void OnClientConnectedHandler()
 		{
-			SetConnectingState(false);
+			_isConnectingAttempt = false;
+			StopTimeoutTimer();
+
 			UpdateStatus("Successfully connected!");
 			ClearError();
+
+			SetConnectButtonState(false);
+
+			if (_startGameButton != null)
+			{
+				_startGameButton.gameObject.SetActive(true);
+			}
 		}
 
 		private void OnClientDisconnectedHandler()
 		{
-			SetConnectingState(false);
+			// Если идёт попытка подключения (таймер висит) — игнорируем быстрый отбой Mirror,
+			// чтобы дать таймеру честно отсчитать 5 секунд.
+			if (_isConnectingAttempt)
+			{
+				return;
+			}
+
+			StopTimeoutTimer();
 			UpdateStatus("Disconnected");
+			ResetUi();
 		}
 
 		private void OnConnectionFailedHandler(string errorMessage)
 		{
-			SetConnectingState(false);
-			UpdateStatus(string.Empty);
+			_isConnectingAttempt = false;
+			StopTimeoutTimer();
 
 			if (_statusText != null)
 			{
 				_statusText.text = errorMessage;
 			}
+
+			ResetUi();
 		}
 
-		private void SetConnectingState(bool isConnecting)
+		private void CheckCurrentConnectionState()
 		{
-			if (_pinInputField != null)
+			ClearError();
+
+			if (_connectionController.IsClientConnected)
 			{
-				_pinInputField.interactable = !isConnecting;
+				UpdateStatus("Successfully connected!");
+				SetConnectButtonState(false);
+
+				if (_startGameButton != null)
+				{
+					_startGameButton.gameObject.SetActive(true);
+				}
+
+				if (_pinInputField != null && !string.IsNullOrEmpty(_connectionController.CurrentPinCode))
+				{
+					_pinInputField.text = _connectionController.CurrentPinCode;
+				}
+
+				if (_targetIpText != null && _connectionController is NetworkConnectionController controller)
+				{
+					_targetIpText.text = $"IP: {controller.GetTargetIp()}";
+				}
+			}
+			else
+			{
+				ResetUi();
+
+				if (_pinInputField != null && _connectionController is NetworkConnectionController controller)
+				{
+					string selfIp = Utility.NetworkCodeUtility.GetLocalIPAddress();
+					string autoPin = Utility.NetworkCodeUtility.IpToPin(selfIp);
+					if (!string.IsNullOrEmpty(autoPin))
+					{
+						_pinInputField.text = autoPin;
+					}
+				}
+			}
+		}
+
+		private void StartTimeoutTimer()
+		{
+			StopTimeoutTimer();
+			_timeoutCoroutine = StartCoroutine(ConnectionTimeoutRoutine());
+		}
+
+		private void StopTimeoutTimer()
+		{
+			if (_timeoutCoroutine != null)
+			{
+				StopCoroutine(_timeoutCoroutine);
+				_timeoutCoroutine = null;
+			}
+		}
+
+		private IEnumerator ConnectionTimeoutRoutine()
+		{
+			float remainingTime = _connectionTimeoutSeconds;
+
+			while (remainingTime > 0)
+			{
+				UpdateStatus($"Connecting to server... ({Mathf.CeilToInt(remainingTime)}s)");
+				yield return new WaitForSeconds(1f);
+				remainingTime -= 1f;
 			}
 
-			if (_playButton != null)
+			// Прошло 5 секунд, хоста нет
+			_isConnectingAttempt = false;
+			_connectionController.Disconnect();
+
+			UpdateStatus("Failed to connect: Host not found");
+			ResetUi();
+		}
+
+		private void SetConnectButtonState(bool interactable)
+		{
+			if (_connectButton != null)
 			{
-				_playButton.interactable = !isConnecting;
+				_connectButton.interactable = interactable;
 			}
 		}
 
@@ -139,9 +260,17 @@ namespace Lightsaber.Network.UI
 
 		private void ResetUi()
 		{
-			SetConnectingState(false);
-			UpdateStatus(string.Empty);
-			ClearError();
+			SetConnectButtonState(true);
+
+			if (_targetIpText != null)
+			{
+				_targetIpText.text = string.Empty;
+			}
+
+			if (_startGameButton != null)
+			{
+				_startGameButton.gameObject.SetActive(false);
+			}
 		}
 	}
 }

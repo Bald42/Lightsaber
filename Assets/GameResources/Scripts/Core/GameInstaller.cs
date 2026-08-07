@@ -11,8 +11,6 @@ namespace Lightsaber.Core
 {
 	public class GameInstaller : MonoInstaller
 	{
-		[SerializeField] private CustomNetworkManager _networkManagerPrefab;
-
 		public override void InstallBindings()
 		{
 			// 1. Биндим менеджер ролей (Zenject сам подтянет IInitializable)
@@ -24,15 +22,12 @@ namespace Lightsaber.Core
 			Container
 				.BindInterfacesAndSelfTo<NetworkConnectionController>()
 				.AsSingle();
-
-			// 3. Инстанцируем и биндим Mirror NetworkManager из префаба
-			Container
-				.Bind<NetworkManager>()
+			
+			Container.Bind<NetworkManager>()
 				.To<CustomNetworkManager>()
-				.FromComponentInNewPrefab(_networkManagerPrefab)
-				.AsSingle()
-				.NonLazy();
-
+				.FromComponentInHierarchy()
+				.AsSingle();
+			
 			// 4. Биндим AppLauncherReadOnly ПОСЛЕДНИМ
 			// Он гарантированно вызовется после того, как заинитятся все менеджеры выше
 			Container

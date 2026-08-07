@@ -7,7 +7,6 @@ namespace Lightsaber.Network.Utility
 {
     public static class NetworkCodeUtility
     {
-        // Константа строго в UPPER_SNAKE_CASE (Base32 без 0, O, 1, I, L)
         private const string ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
         private const string DEFAULT_FALLBACK_IP = "127.0.0.1";
         private const string DEFAULT_PIN_FALLBACK = "AAAA";
@@ -21,13 +20,11 @@ namespace Lightsaber.Network.Utility
             {
                 foreach (NetworkInterface ni in NetworkInterface.GetAllNetworkInterfaces())
                 {
-                    // Пропускаем выключенные, петлевые (127.0.0.1) и виртуальные/туннельные (VPN)
                     if (ni.OperationalStatus != OperationalStatus.Up ||
                         ni.NetworkInterfaceType == NetworkInterfaceType.Loopback ||
                         ni.NetworkInterfaceType == NetworkInterfaceType.Tunnel)
                         continue;
 
-                    // Фильтруем названия виртуальных карт (VPN, Hamachi, Radmin, Docker, VirtualBox)
                     string name = ni.Description.ToLower();
                     if (name.Contains("virtual") || name.Contains("tap") || 
                         name.Contains("vpn") || name.Contains("zerotier") || 
@@ -53,7 +50,7 @@ namespace Lightsaber.Network.Utility
         }
 
         /// <summary>
-        /// Кодирует последние 2 октета IP (X.Y) в 4-значный PIN
+        /// Кодирует последние 2 октета IP (parts[2] и parts[3]) в 4-значный PIN
         /// </summary>
         public static string IpToPin(string ipAddress)
         {
@@ -78,9 +75,10 @@ namespace Lightsaber.Network.Utility
         }
 
         /// <summary>
-        /// Преобразует PIN обратно в IP
+        /// Преобразует PIN обратно в IP, восстанавливая последние 2 октета.
+        /// prefixOrSubnet может передаваться как "192.168", "192.168.", или "192.168.1."
         /// </summary>
-        public static string PinToIp(string pin, string defaultPrefix = "192.168.")
+        public static string PinToIp(string pin, string prefixOrSubnet = "192.168")
         {
             if (string.IsNullOrEmpty(pin)) return null;
             
@@ -98,7 +96,11 @@ namespace Lightsaber.Network.Utility
             int byte3 = (combined >> 8) & 0xFF;
             int byte4 = combined & 0xFF;
 
-            return $"{defaultPrefix}{byte3}.{byte4}";
+            // Вычленяем только первые два октета (например, "192.168" из "192.168.1.")
+            string[] parts = prefixOrSubnet.Split('.', StringSplitOptions.RemoveEmptyEntries);
+            string basePrefix = parts.Length >= 2 ? $"{parts[0]}.{parts[1]}" : "192.168";
+
+            return $"{basePrefix}.{byte3}.{byte4}";
         }
     }
 }
