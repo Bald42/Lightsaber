@@ -13,6 +13,8 @@ namespace Lightsaber.Core
 	{
 		public override void InstallBindings()
 		{
+			Screen.sleepTimeout = SleepTimeout.NeverSleep;
+			
 			// 1. Биндим менеджер ролей (Zenject сам подтянет IInitializable)
 			Container
 				.BindInterfacesAndSelfTo<NetworkRoleManager>()

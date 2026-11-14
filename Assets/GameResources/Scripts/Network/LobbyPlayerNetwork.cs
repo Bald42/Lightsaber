@@ -7,6 +7,11 @@ namespace Lightsaber.Network
 	{
 		public static LobbyPlayerNetwork LocalInstance { get; private set; }
 
+		private void Awake()
+		{
+			DontDestroyOnLoad(gameObject);
+		}
+
 		public override void OnStartLocalPlayer()
 		{
 			base.OnStartLocalPlayer();
@@ -24,7 +29,7 @@ namespace Lightsaber.Network
 		[Command]
 		private void CmdRequestStartGame(string sceneName)
 		{
-			Debug.Log($"<color=green>[Server]</color> Received StartGame request from client. Changing scene to: {sceneName}");
+			Debug.Log($"<color=green>[Server]</color> Received StartGame request. Changing scene to: {sceneName}");
 			NetworkManager.singleton.ServerChangeScene(sceneName);
 		}
 	}

@@ -24,6 +24,7 @@ namespace Lightsaber.Network.UI
 
 		private Coroutine _timeoutCoroutine;
 		private bool _isConnectingAttempt; // Флаг: крутится ли прямо сейчас таймер подключения
+		private const string DEFAULT_PIN = "22FG";
 
 		private void OnEnable()
 		{
@@ -174,9 +175,9 @@ namespace Lightsaber.Network.UI
 					_startGameButton.gameObject.SetActive(true);
 				}
 
-				if (_pinInputField != null && !string.IsNullOrEmpty(_connectionController.CurrentPinCode))
+				if (_pinInputField != null)
 				{
-					_pinInputField.text = _connectionController.CurrentPinCode;
+					_pinInputField.text = DEFAULT_PIN;
 				}
 
 				if (_targetIpText != null && _connectionController is NetworkConnectionController controller)
@@ -188,14 +189,9 @@ namespace Lightsaber.Network.UI
 			{
 				ResetUi();
 
-				if (_pinInputField != null && _connectionController is NetworkConnectionController controller)
+				if (_pinInputField != null)
 				{
-					string selfIp = Utility.NetworkCodeUtility.GetLocalIPAddress();
-					string autoPin = Utility.NetworkCodeUtility.IpToPin(selfIp);
-					if (!string.IsNullOrEmpty(autoPin))
-					{
-						_pinInputField.text = autoPin;
-					}
+					_pinInputField.text = DEFAULT_PIN;
 				}
 			}
 		}

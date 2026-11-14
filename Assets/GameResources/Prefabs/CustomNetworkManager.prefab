@@ -59,11 +59,12 @@ MonoBehaviour:
   disconnectInactiveConnections: 0
   disconnectInactiveTimeout: 60
   authenticator: {fileID: 0}
-  playerPrefab: {fileID: 3492456542207875183, guid: 8aa127b5dc94d6546a3f6916aac9715e,
-    type: 3}
-  autoCreatePlayer: 1
+  playerPrefab: {fileID: 0}
+  autoCreatePlayer: 0
   playerSpawnMethod: 0
-  spawnPrefabs: []
+  spawnPrefabs:
+  - {fileID: 3492456542207875183, guid: 8aa127b5dc94d6546a3f6916aac9715e, type: 3}
+  - {fileID: 3720379614671692603, guid: c608ed3ad97b1dd4d908a6b3c27568ee, type: 3}
   exceptionsDisconnect: 1
   snapshotSettings:
     bufferTimeMultiplier: 2
@@ -79,6 +80,9 @@ MonoBehaviour:
   evaluationMethod: 0
   evaluationInterval: 3
   timeInterpolationGui: 0
+  lobbyPlayerPrefab: {fileID: 3492456542207875183, guid: 8aa127b5dc94d6546a3f6916aac9715e,
+    type: 3}
+  _lobbySceneName: Assets/Scenes/Lobby.unity
 --- !u!114 &1141006186167802812
 MonoBehaviour:
   m_ObjectHideFlags: 0
