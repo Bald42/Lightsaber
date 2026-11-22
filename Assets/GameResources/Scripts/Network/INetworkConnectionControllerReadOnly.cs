@@ -10,7 +10,10 @@ namespace Lightsaber.Network
 		int ConnectedPlayersCount { get; }
 		string CurrentPinCode { get; }
 		string CurrentIpAddress { get; }
-		
+
+		string GetTargetIp();
+		string GetDefaultSubnetGuess();
+
 		event Action<ServerStartedEvent> OnServerStartedEvent;
 		event Action OnClientConnectedEvent;
 		event Action OnClientDisconnectedEvent;

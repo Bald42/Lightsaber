@@ -12,11 +12,15 @@ namespace Lightsaber.Network.Utility
         private const string DEFAULT_PIN_FALLBACK = "AAAA";
 
         /// <summary>
-        /// Достаёт локальный IP реального Wi-Fi/Ethernet адаптера.
-        /// Берём только адаптеры с настоящим шлюзом (не 0.0.0.0) — у VPN/прокси-туннелей
-        /// (точка-точка, /30) шлюза обычно нет, в отличие от обычной домашней сети.
-        /// Если такого не нашлось (например, на Android GatewayAddresses не отдаётся),
-        /// откатываемся на первый Ethernet/Wi-Fi адаптер вообще.
+        /// Достаёт локальный IP реального адаптера. Раньше тут был жёсткий фильтр по типу
+        /// (только Ethernet/Wireless80211) — на части Android-телефонов реальный Wi-Fi
+        /// репортится другим типом (Unknown и т.п.), фильтр резал его и всё падало на
+        /// заглушку 127.0.0.1. Поэтому тип не проверяем вообще, только отсекаем loopback,
+        /// туннели и явно VPN-образные адаптеры по описанию (как было до прошлого фикса).
+        /// Среди оставшихся предпочитаем адаптер с настоящим шлюзом (не 0.0.0.0) — у VPN/
+        /// прокси-туннелей (точка-точка) шлюза обычно нет, в отличие от обычной домашней сети.
+        /// Если шлюз нигде не отдаётся (бывает на Android), откатываемся на первый
+        /// подходящий адаптер вообще.
         /// </summary>
         public static string GetLocalIPAddress()
         {
@@ -26,11 +30,15 @@ namespace Lightsaber.Network.Utility
 
                 foreach (NetworkInterface ni in NetworkInterface.GetAllNetworkInterfaces())
                 {
-                    if (ni.OperationalStatus != OperationalStatus.Up)
+                    if (ni.OperationalStatus != OperationalStatus.Up ||
+                        ni.NetworkInterfaceType == NetworkInterfaceType.Loopback ||
+                        ni.NetworkInterfaceType == NetworkInterfaceType.Tunnel)
                         continue;
 
-                    if (ni.NetworkInterfaceType != NetworkInterfaceType.Ethernet &&
-                        ni.NetworkInterfaceType != NetworkInterfaceType.Wireless80211)
+                    string description = ni.Description.ToLower();
+                    if (description.Contains("virtual") || description.Contains("tap") ||
+                        description.Contains("vpn") || description.Contains("zerotier") ||
+                        description.Contains("hamachi") || description.Contains("veth"))
                         continue;
 
                     IPInterfaceProperties ipProps = ni.GetIPProperties();

@@ -102,13 +102,6 @@ namespace Lightsaber.Network
 		{
 			string upperPin = pin.Trim().ToUpper();
 
-			// Проверка: если клиент уже в процессе коннекта — игнорим повторные клики
-			if (IsClientConnecting)
-			{
-				Debug.LogWarning("[NetworkConnectionController] Connection attempt already in progress...");
-				return;
-			}
-
 			if (string.IsNullOrEmpty(upperPin) || upperPin.Length != 4)
 			{
 				OnConnectionFailedEvent?.Invoke("Invalid PIN length");
@@ -120,6 +113,65 @@ namespace Lightsaber.Network
 			if (string.IsNullOrEmpty(targetIp))
 			{
 				OnConnectionFailedEvent?.Invoke("Failed to decode PIN");
+				return;
+			}
+
+			ConnectToTargetIp(targetIp);
+		}
+
+		// Запасной путь для кнопки "не подключилось" в лобби: если автоопределение подсети
+		// промахнулось (PIN на вид верный, но хост не найден) — подставляем первые два числа
+		// IP хоста руками, минуя FindValidIpForPin целиком.
+		public void ConnectByPinWithSubnet(string pin, string subnetPrefix)
+		{
+			string upperPin = pin.Trim().ToUpper();
+
+			if (string.IsNullOrEmpty(upperPin) || upperPin.Length != 4)
+			{
+				OnConnectionFailedEvent?.Invoke("Invalid PIN length");
+				return;
+			}
+
+			string targetIp = NetworkCodeUtility.PinToIp(upperPin, subnetPrefix);
+
+			if (string.IsNullOrEmpty(targetIp))
+			{
+				OnConnectionFailedEvent?.Invoke("Failed to decode PIN");
+				return;
+			}
+
+			ConnectToTargetIp(targetIp);
+		}
+
+		public string GetTargetIp()
+		{
+			return _mirrorNetworkManager != null ? _mirrorNetworkManager.networkAddress : string.Empty;
+		}
+
+		// Подсказка для поля ручного ввода подсети: что мы и так уже пробуем автоматически,
+		// чтобы человек правил цифры, а не вводил их с нуля.
+		public string GetDefaultSubnetGuess()
+		{
+			string selfIp = NetworkCodeUtility.GetLocalIPAddress();
+
+			if (!string.IsNullOrEmpty(selfIp) && !selfIp.StartsWith("127."))
+			{
+				string[] parts = selfIp.Split('.');
+				if (parts.Length >= 2)
+				{
+					return $"{parts[0]}.{parts[1]}";
+				}
+			}
+
+			return _defaultSubnets[0].TrimEnd('.');
+		}
+
+		private void ConnectToTargetIp(string targetIp)
+		{
+			// Проверка: если клиент уже в процессе коннекта — игнорим повторные клики
+			if (IsClientConnecting)
+			{
+				Debug.LogWarning("[NetworkConnectionController] Connection attempt already in progress...");
 				return;
 			}
 
@@ -135,13 +187,8 @@ namespace Lightsaber.Network
 
 			_mirrorNetworkManager.networkAddress = targetIp;
 			Debug.Log($"<color=green>[NetworkConnectionController]</color> Client connecting to {targetIp}...");
-			
-			_mirrorNetworkManager.StartClient();
-		}
 
-		public string GetTargetIp()
-		{
-			return _mirrorNetworkManager != null ? _mirrorNetworkManager.networkAddress : string.Empty;
+			_mirrorNetworkManager.StartClient();
 		}
 
 		public void Disconnect()
@@ -216,7 +263,9 @@ namespace Lightsaber.Network
 		{
 			string selfIp = NetworkCodeUtility.GetLocalIPAddress();
 
-			if (!string.IsNullOrEmpty(selfIp) && selfIp.Contains("."))
+			// "127." — это заглушка GetLocalIPAddress на случай, если адаптер вообще не нашёлся.
+			// Строить из неё подсеть бессмысленно, сразу уходим к списку дефолтных подсетей.
+			if (!string.IsNullOrEmpty(selfIp) && selfIp.Contains(".") && !selfIp.StartsWith("127."))
 			{
 				int lastDotIndex = selfIp.LastIndexOf('.');
 				string currentSubnet = selfIp.Substring(0, lastDotIndex + 1);

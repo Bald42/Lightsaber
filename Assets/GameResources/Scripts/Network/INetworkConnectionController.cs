@@ -4,6 +4,7 @@ namespace Lightsaber.Network
 	{
 		void StartHost();
 		void ConnectByPin(string pin);
+		void ConnectByPinWithSubnet(string pin, string subnetPrefix);
 		void Disconnect();
 		void OnPlayerConnected();
 		void OnPlayerDisconnected();

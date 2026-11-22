@@ -20,6 +20,12 @@ namespace Lightsaber.Network.UI
 		[Header("Settings")]
 		[SerializeField] private float _connectionTimeoutSeconds = 5f;
 
+		[Header("Manual Subnet Fallback")]
+		[SerializeField] private Button _manualSubnetButton;
+		[SerializeField] private GameObject _manualSubnetPanel;
+		[SerializeField] private TMP_InputField _subnetInputField;
+		[SerializeField] private Button _manualConnectButton;
+
 		// Для ускорения локального теста — подставляется в поле PIN вместо вычисления из своего IP.
 		// Обновить, если у хоста (ПК) изменится IP (сейчас 192.168.1.174 → PIN 22FG).
 		private const string DEFAULT_TEST_PIN = "22FG";
@@ -50,6 +56,16 @@ namespace Lightsaber.Network.UI
 				_startGameButton.onClick.AddListener(OnStartGameButtonClicked);
 			}
 
+			if (_manualSubnetButton != null)
+			{
+				_manualSubnetButton.onClick.AddListener(OnManualSubnetButtonClicked);
+			}
+
+			if (_manualConnectButton != null)
+			{
+				_manualConnectButton.onClick.AddListener(OnManualConnectButtonClicked);
+			}
+
 			CheckCurrentConnectionState();
 		}
 
@@ -72,6 +88,16 @@ namespace Lightsaber.Network.UI
 			if (_startGameButton != null)
 			{
 				_startGameButton.onClick.RemoveListener(OnStartGameButtonClicked);
+			}
+
+			if (_manualSubnetButton != null)
+			{
+				_manualSubnetButton.onClick.RemoveListener(OnManualSubnetButtonClicked);
+			}
+
+			if (_manualConnectButton != null)
+			{
+				_manualConnectButton.onClick.RemoveListener(OnManualConnectButtonClicked);
 			}
 
 			StopTimeoutTimer();
@@ -104,9 +130,51 @@ namespace Lightsaber.Network.UI
 
 			_connectionController.ConnectByPin(pin);
 
-			if (_targetIpText != null && _connectionController is NetworkConnectionController controller)
+			if (_targetIpText != null)
 			{
-				_targetIpText.text = $"IP: {controller.GetTargetIp()}";
+				_targetIpText.text = $"IP: {_connectionController.GetTargetIp()}";
+			}
+
+			StartTimeoutTimer();
+		}
+
+		// Кнопка-подстраховка: если обычный PIN не сработал (хост угадал не ту подсеть),
+		// открываем панель для ввода первых двух чисел IP хоста руками.
+		private void OnManualSubnetButtonClicked()
+		{
+			bool willShow = _manualSubnetPanel != null && !_manualSubnetPanel.activeSelf;
+
+			if (willShow && _subnetInputField != null)
+			{
+				_subnetInputField.text = _connectionController.GetDefaultSubnetGuess();
+			}
+
+			if (_manualSubnetPanel != null)
+			{
+				_manualSubnetPanel.SetActive(willShow);
+			}
+		}
+
+		private void OnManualConnectButtonClicked()
+		{
+			if (_pinInputField == null || _subnetInputField == null) return;
+
+			string pin = _pinInputField.text.Trim().ToUpper();
+			string subnetPrefix = _subnetInputField.text.Trim();
+
+			_isConnectingAttempt = true;
+			SetConnectButtonState(false);
+
+			_connectionController.ConnectByPinWithSubnet(pin, subnetPrefix);
+
+			if (_targetIpText != null)
+			{
+				_targetIpText.text = $"IP: {_connectionController.GetTargetIp()}";
+			}
+
+			if (_manualSubnetPanel != null)
+			{
+				_manualSubnetPanel.SetActive(false);
 			}
 
 			StartTimeoutTimer();
@@ -183,9 +251,9 @@ namespace Lightsaber.Network.UI
 					_pinInputField.text = _connectionController.CurrentPinCode;
 				}
 
-				if (_targetIpText != null && _connectionController is NetworkConnectionController controller)
+				if (_targetIpText != null)
 				{
-					_targetIpText.text = $"IP: {controller.GetTargetIp()}";
+					_targetIpText.text = $"IP: {_connectionController.GetTargetIp()}";
 				}
 			}
 			else
