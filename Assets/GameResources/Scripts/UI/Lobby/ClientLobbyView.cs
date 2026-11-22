@@ -20,6 +20,10 @@ namespace Lightsaber.Network.UI
 		[Header("Settings")]
 		[SerializeField] private float _connectionTimeoutSeconds = 5f;
 
+		// Для ускорения локального теста — подставляется в поле PIN вместо вычисления из своего IP.
+		// Обновить, если у хоста (ПК) изменится IP (сейчас 192.168.1.174 → PIN 22FG).
+		private const string DEFAULT_TEST_PIN = "22FG";
+
 		[Inject] private INetworkConnectionController _connectionController;
 
 		private Coroutine _timeoutCoroutine;
@@ -188,14 +192,9 @@ namespace Lightsaber.Network.UI
 			{
 				ResetUi();
 
-				if (_pinInputField != null && _connectionController is NetworkConnectionController controller)
+				if (_pinInputField != null)
 				{
-					string selfIp = Utility.NetworkCodeUtility.GetLocalIPAddress();
-					string autoPin = Utility.NetworkCodeUtility.IpToPin(selfIp);
-					if (!string.IsNullOrEmpty(autoPin))
-					{
-						_pinInputField.text = autoPin;
-					}
+					_pinInputField.text = DEFAULT_TEST_PIN;
 				}
 			}
 		}

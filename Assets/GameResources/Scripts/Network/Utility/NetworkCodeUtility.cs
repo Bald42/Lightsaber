@@ -12,33 +12,64 @@ namespace Lightsaber.Network.Utility
         private const string DEFAULT_PIN_FALLBACK = "AAAA";
 
         /// <summary>
-        /// Достает НАСТОЯЩИЙ локальный IP-адрес, фильтруя VPN и виртуальные адаптеры
+        /// Достаёт локальный IP реального Wi-Fi/Ethernet адаптера.
+        /// Берём только адаптеры с настоящим шлюзом (не 0.0.0.0) — у VPN/прокси-туннелей
+        /// (точка-точка, /30) шлюза обычно нет, в отличие от обычной домашней сети.
+        /// Если такого не нашлось (например, на Android GatewayAddresses не отдаётся),
+        /// откатываемся на первый Ethernet/Wi-Fi адаптер вообще.
         /// </summary>
         public static string GetLocalIPAddress()
         {
             try
             {
+                string fallbackCandidate = null;
+
                 foreach (NetworkInterface ni in NetworkInterface.GetAllNetworkInterfaces())
                 {
-                    if (ni.OperationalStatus != OperationalStatus.Up ||
-                        ni.NetworkInterfaceType == NetworkInterfaceType.Loopback ||
-                        ni.NetworkInterfaceType == NetworkInterfaceType.Tunnel)
+                    if (ni.OperationalStatus != OperationalStatus.Up)
                         continue;
 
-                    string name = ni.Description.ToLower();
-                    if (name.Contains("virtual") || name.Contains("tap") || 
-                        name.Contains("vpn") || name.Contains("zerotier") || 
-                        name.Contains("hamachi") || name.Contains("veth"))
+                    if (ni.NetworkInterfaceType != NetworkInterfaceType.Ethernet &&
+                        ni.NetworkInterfaceType != NetworkInterfaceType.Wireless80211)
                         continue;
 
                     IPInterfaceProperties ipProps = ni.GetIPProperties();
+
+                    string ipv4 = null;
                     foreach (UnicastIPAddressInformation ip in ipProps.UnicastAddresses)
                     {
                         if (ip.Address.AddressFamily == AddressFamily.InterNetwork)
                         {
-                            return ip.Address.ToString();
+                            ipv4 = ip.Address.ToString();
+                            break;
                         }
                     }
+
+                    if (ipv4 == null)
+                        continue;
+
+                    bool hasRealGateway = false;
+                    foreach (GatewayIPAddressInformation gateway in ipProps.GatewayAddresses)
+                    {
+                        if (gateway.Address.AddressFamily == AddressFamily.InterNetwork &&
+                            gateway.Address.ToString() != "0.0.0.0")
+                        {
+                            hasRealGateway = true;
+                            break;
+                        }
+                    }
+
+                    if (hasRealGateway)
+                    {
+                        return ipv4;
+                    }
+
+                    fallbackCandidate ??= ipv4;
+                }
+
+                if (fallbackCandidate != null)
+                {
+                    return fallbackCandidate;
                 }
             }
             catch (Exception e)
