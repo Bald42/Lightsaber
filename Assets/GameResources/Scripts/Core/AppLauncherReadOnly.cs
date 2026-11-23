@@ -11,6 +11,9 @@ namespace Lightsaber.Core
 
 		public void Initialize()
 		{
+			// Телефон не должен засыпать посреди игры/калибровки — на ПК это поле просто не на что влиять.
+			Screen.sleepTimeout = SleepTimeout.NeverSleep;
+
 			IsGameReady = true;
 			GameReadyEvent?.Invoke();
 		}

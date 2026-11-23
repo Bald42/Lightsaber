@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Lightsaber.Cheats;
+using Lightsaber.Game;
 using Lightsaber.Network;
 using Mirror;
 using UnityEngine;
@@ -11,6 +12,8 @@ namespace Lightsaber.Core
 {
 	public class GameInstaller : MonoInstaller
 	{
+		[SerializeField] private SaberSettings _saberSettings;
+
 		public override void InstallBindings()
 		{
 			// 1. Биндим менеджер ролей (Zenject сам подтянет IInitializable)
@@ -28,6 +31,10 @@ namespace Lightsaber.Core
 				.FromComponentInHierarchy()
 				.AsSingle();
 			
+			// Настройки меча и реестр активных мечей (Lightsaber.Game)
+			Container.BindInstance(_saberSettings).AsSingle();
+			Container.BindInterfacesAndSelfTo<SaberPlayerRegistry>().AsSingle();
+
 			// 4. Биндим AppLauncherReadOnly ПОСЛЕДНИМ
 			// Он гарантированно вызовется после того, как заинитятся все менеджеры выше
 			Container

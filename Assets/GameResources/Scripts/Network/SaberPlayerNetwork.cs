@@ -1,11 +1,12 @@
 using Mirror;
 using UnityEngine;
 using Lightsaber.Game;
+using Zenject;
 
 namespace Lightsaber.Network
 {
 	// Транспорт игрока меча: только приём сырых данных гироскопа с телефона.
-	// Вся математика (оси, хват, калибровка, сглаживание) будет жить в Lightsaber.Game — здесь её нет.
+	// Вся математика (оси, хват, калибровка, сглаживание) живёт в Lightsaber.Game — здесь её нет.
 	public class SaberPlayerNetwork : NetworkBehaviour
 	{
 		public int PlayerIndex { get; private set; }
@@ -13,12 +14,14 @@ namespace Lightsaber.Network
 		public Vector3 RawRotationRate { get; private set; }
 		public Vector3 RawUserAcceleration { get; private set; }
 
+		[Inject] private DiContainer _container;
+
 		[SerializeField] private GameObject _phoneModelPrefab;
 		[SerializeField] private float _sendRateHz = 60f;
 
 		private float _sendInterval;
 		private float _timeSinceLastSend;
-		private PhoneModelView _phoneModelView;
+		private SaberView _saberView;
 
 		private void Awake()
 		{
@@ -26,7 +29,7 @@ namespace Lightsaber.Network
 		}
 
 		// Выполняется один раз и только на серверной копии объекта (на хосте).
-		// Модель-«телефон» нужна только там — показать её на экране телефона смысла нет.
+		// Модель меча нужна только там — показывать её на экране телефона смысла нет.
 		public override void OnStartServer()
 		{
 			base.OnStartServer();
@@ -35,7 +38,15 @@ namespace Lightsaber.Network
 				return;
 
 			GameObject modelInstance = Instantiate(_phoneModelPrefab, transform.position, transform.rotation);
-			modelInstance.TryGetComponent(out _phoneModelView);
+
+			// Без этой строки [Inject]-поля SaberView на этой модельке останутся пустыми —
+			// объект создан обычным Instantiate, Zenject о нём ничего не знает.
+			_container.InjectGameObject(modelInstance);
+
+			if (modelInstance.TryGetComponent(out _saberView))
+			{
+				_saberView.Register();
+			}
 		}
 
 		public override void OnStartLocalPlayer()
@@ -74,7 +85,7 @@ namespace Lightsaber.Network
 			RawRotationRate = rotationRate;
 			RawUserAcceleration = userAcceleration;
 
-			_phoneModelView?.SetRawAttitude(attitude);
+			_saberView?.ApplyRawAttitude(attitude);
 		}
 	}
 }

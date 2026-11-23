@@ -45,6 +45,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8a9ff3653e14fef43a99468036eddb52, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  _saberSettings: {fileID: 11400000, guid: 4ae5ce96d63fbad44ba9ac4b83c13adc, type: 2}
 --- !u!1 &4623714594197500585
 GameObject:
   m_ObjectHideFlags: 0

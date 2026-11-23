@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 11293230d4e600b41afa7e145a784ada, type: 3}
+  m_Name: SaberSettings
+  m_EditorClassIdentifier: 
+  <GripCorrectionEuler>k__BackingField: {x: 1.3431654, y: 331.73837, z: 88.57776}
+  <NeutralTilt>k__BackingField: 0
+  <InvertX>k__BackingField: 0
+  <InvertY>k__BackingField: 0
+  <InvertZ>k__BackingField: 0
