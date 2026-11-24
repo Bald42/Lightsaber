@@ -25,11 +25,39 @@ namespace Lightsaber.Game
 			_registry?.Unregister(this);
 		}
 
+		// Временное упрощение теста калибровки: пробел на хосте — тот же эффект, что кнопка
+		// "Calibrate" в чите. Лежит здесь, а не в SaberPlayerNetwork, т.к. SaberView существует
+		// только на хосте (есть физическая клавиатура), а SaberPlayerNetwork — сетевой компонент
+		// телефона, его Update обрабатывает ввод именно на клиенте.
+		private void Update()
+		{
+			if (Input.GetKeyDown(KeyCode.Space))
+			{
+				Calibrate();
+			}
+		}
+
 		// Зовёт SaberPlayerNetwork сразу после Instantiate + InjectGameObject —
 		// до этого момента [Inject]-поля ещё не заполнены (Awake уже отработал бы с пустыми).
 		public void Register()
 		{
 			_registry.Register(this);
+		}
+
+		public void Calibrate()
+		{
+			_processor ??= new SaberRotationProcessor(_settings);
+
+			if (!_processor.Calibrate(LastRawAttitude))
+			{
+				Debug.LogWarning("[SaberView] Калибровка пропущена: клинок почти вертикален. " +
+					"Положи телефон на стол экраном вверх, динамиком к монитору.");
+			}
+		}
+
+		public void ResetCalibration()
+		{
+			_processor?.ResetCalibration();
 		}
 
 		public void ApplyRawAttitude(Quaternion rawAttitude)

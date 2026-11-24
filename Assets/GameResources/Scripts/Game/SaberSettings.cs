@@ -4,12 +4,20 @@ namespace Lightsaber.Game
 {
 	// Настройки меча: правятся в инспекторе и живьём через чит SaberCheatTab.
 	// Один общий ассет на всех игроков, пока не понадобится разделение по игроку.
-	// Рука пока не нужна: в фиче сейчас только правый хват (docs/features/4_SaberRotation.md),
-	// выбор руки — отдельная история на будущее, не трогаем её сейчас.
+	// Цепочка (SaberRotationProcessor): калибровка * поправкаМира * конвертация(raw) * поправкаХвата.
 	[CreateAssetMenu(fileName = "SaberSettings", menuName = "Lightsaber/Saber Settings")]
 	public class SaberSettings : ScriptableObject
 	{
-		[field: SerializeField] public Vector3 GripCorrectionEuler { get; set; } = Vector3.zero;
+		// Поворот мира, умножается слева. У гироскопа Android небо по оси Z, у Unity по Y:
+		// (90, 0, 0) ставит небо вверх.
+		[field: SerializeField] public Vector3 WorldCorrectionEuler { get; set; } = new Vector3(90f, 0f, 0f);
+
+		// Поворот в системе самого телефона, умножается справа. (0, 180, 0) разворачивает
+		// модель так, чтобы грань ScreenFace была со стороны настоящего экрана.
+		[field: SerializeField] public Vector3 GripCorrectionEuler { get; set; } = new Vector3(0f, 180f, 0f);
+
+		// Куда смотрит клинок после калибровки, градусы вокруг вертикали. 0 — в экран, от камеры.
+		[field: SerializeField] public float CalibrationTargetYaw { get; set; }
 
 		[field: SerializeField] public float NeutralTilt { get; set; }
 

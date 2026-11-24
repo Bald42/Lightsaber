@@ -28,9 +28,16 @@ namespace Lightsaber.Cheats
 			AddOption("Invert Y", () => _settings.InvertY, value => _settings.InvertY = value);
 			AddOption("Invert Z", () => _settings.InvertZ, value => _settings.InvertZ = value);
 
+			AddOption("World correction X", () => _settings.WorldCorrectionEuler.x, value => SetWorldCorrection(x: value));
+			AddOption("World correction Y", () => _settings.WorldCorrectionEuler.y, value => SetWorldCorrection(y: value));
+			AddOption("World correction Z", () => _settings.WorldCorrectionEuler.z, value => SetWorldCorrection(z: value));
+
 			AddOption("Grip correction X", () => _settings.GripCorrectionEuler.x, value => SetGripCorrection(x: value));
 			AddOption("Grip correction Y", () => _settings.GripCorrectionEuler.y, value => SetGripCorrection(y: value));
 			AddOption("Grip correction Z", () => _settings.GripCorrectionEuler.z, value => SetGripCorrection(z: value));
+
+			AddButton("Calibrate", Calibrate);
+			AddButton("Reset calibration", ResetCalibration);
 
 			AddOption("Freeze saber", () => _isFrozen, SetFrozen);
 			AddOption("Show phone model", () => _isPhoneModelVisible, SetPhoneModelVisible);
@@ -41,10 +48,32 @@ namespace Lightsaber.Cheats
 
 		private SaberView FirstPlayer => _registry.Players.Count > 0 ? _registry.Players[0] : null;
 
+		private void SetWorldCorrection(float? x = null, float? y = null, float? z = null)
+		{
+			Vector3 current = _settings.WorldCorrectionEuler;
+			_settings.WorldCorrectionEuler = new Vector3(x ?? current.x, y ?? current.y, z ?? current.z);
+		}
+
 		private void SetGripCorrection(float? x = null, float? y = null, float? z = null)
 		{
 			Vector3 current = _settings.GripCorrectionEuler;
 			_settings.GripCorrectionEuler = new Vector3(x ?? current.x, y ?? current.y, z ?? current.z);
+		}
+
+		private void Calibrate()
+		{
+			foreach (SaberView view in _registry.Players)
+			{
+				view.Calibrate();
+			}
+		}
+
+		private void ResetCalibration()
+		{
+			foreach (SaberView view in _registry.Players)
+			{
+				view.ResetCalibration();
+			}
 		}
 
 		private void SetFrozen(bool value)
