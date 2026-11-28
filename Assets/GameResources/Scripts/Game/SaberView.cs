@@ -11,6 +11,7 @@ namespace Lightsaber.Game
 		public Quaternion LastRawAttitude { get; private set; } = Quaternion.identity;
 		public Quaternion LastProcessedRotation { get; private set; } = Quaternion.identity;
 		public bool IsFrozen { get; set; }
+		public bool IsCalibrated { get; private set; }
 
 		[Inject] private SaberSettings _settings;
 		[Inject] private ISaberPlayerRegistry _registry;
@@ -18,7 +19,16 @@ namespace Lightsaber.Game
 		// Не цель поворота — нужен только чтобы не прятать клинок при "Show phone model".
 		[SerializeField] private Transform _bladeTransform;
 
+		private const float TRANSIENT_HINT_SECONDS = 2f;
+		private const string NOT_CALIBRATED_HINT = "Не откалибровано: телефон на стол экраном вверх, " +
+			"динамиком к монитору, пробел (кликни в окно Game) или Calibrate в читах";
+		private const string FAILED_HINT = "Калибровка не прошла: клинок почти вертикальный, положи телефон на стол";
+		private const string SUCCESS_HINT = "Откалибровано";
+
 		private SaberRotationProcessor _processor;
+		private GUIStyle _hintStyle;
+		private string _transientHint;
+		private float _transientHintUntil;
 
 		private void OnDestroy()
 		{
@@ -37,6 +47,32 @@ namespace Lightsaber.Game
 			}
 		}
 
+		// Отладочная подсказка на экране хоста: калибровка сбрасывается при каждом старте Play,
+		// без надписи легко забыть её сделать. Пока игрок один — у N игроков надписи наложатся.
+		private void OnGUI()
+		{
+			string hint = CurrentHint();
+			if (hint == null)
+			{
+				return;
+			}
+
+			_hintStyle ??= new GUIStyle(GUI.skin.label)
+			{
+				fontSize = 28,
+				alignment = TextAnchor.UpperCenter,
+				wordWrap = true
+			};
+
+			Rect rect = new Rect(120f, 20f, Screen.width - 240f, 160f);
+
+			// Чёрная тень на 2 пикселя — чтобы текст читался и на небе, и на полу.
+			_hintStyle.normal.textColor = Color.black;
+			GUI.Label(new Rect(rect.x + 2f, rect.y + 2f, rect.width, rect.height), hint, _hintStyle);
+			_hintStyle.normal.textColor = Color.yellow;
+			GUI.Label(rect, hint, _hintStyle);
+		}
+
 		// Зовёт SaberPlayerNetwork сразу после Instantiate + InjectGameObject —
 		// до этого момента [Inject]-поля ещё не заполнены (Awake уже отработал бы с пустыми).
 		public void Register()
@@ -48,16 +84,23 @@ namespace Lightsaber.Game
 		{
 			_processor ??= new SaberRotationProcessor(_settings);
 
-			if (!_processor.Calibrate(LastRawAttitude))
+			if (_processor.Calibrate(LastRawAttitude))
 			{
-				Debug.LogWarning("[SaberView] Калибровка пропущена: клинок почти вертикален. " +
-					"Положи телефон на стол экраном вверх, динамиком к монитору.");
+				IsCalibrated = true;
+				ShowTransientHint(SUCCESS_HINT);
+				return;
 			}
+
+			ShowTransientHint(FAILED_HINT);
+			Debug.LogWarning("[SaberView] Калибровка пропущена: клинок почти вертикален. " +
+				"Положи телефон на стол экраном вверх, динамиком к монитору.");
 		}
 
 		public void ResetCalibration()
 		{
 			_processor?.ResetCalibration();
+			IsCalibrated = false;
+			_transientHintUntil = 0f;
 		}
 
 		public void ApplyRawAttitude(Quaternion rawAttitude)
@@ -89,6 +132,23 @@ namespace Lightsaber.Game
 
 				renderer.enabled = isVisible;
 			}
+		}
+
+		private void ShowTransientHint(string hint)
+		{
+			_transientHint = hint;
+			_transientHintUntil = Time.time + TRANSIENT_HINT_SECONDS;
+		}
+
+		// Короткое сообщение (успех/неудача) важнее постоянного; без калибровки висит инструкция.
+		private string CurrentHint()
+		{
+			if (Time.time < _transientHintUntil)
+			{
+				return _transientHint;
+			}
+
+			return IsCalibrated ? null : NOT_CALIBRATED_HINT;
 		}
 	}
 }

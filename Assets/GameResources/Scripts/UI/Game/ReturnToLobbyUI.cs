@@ -30,9 +30,18 @@ namespace Lightsaber.Network.UI
 
 		private void OnReturnButtonClicked()
 		{
-			if (LobbyPlayerNetwork.LocalInstance != null)
+			// Хост сам сервер: своего игрока в GameScene у него нет, сцену меняет напрямую.
+			if (NetworkServer.active)
 			{
-				LobbyPlayerNetwork.LocalInstance.RequestStartGame(_lobbySceneName);
+				NetworkManager.singleton.ServerChangeScene(_lobbySceneName);
+				return;
+			}
+
+			// На телефоне просьба идёт через SaberPlayerNetwork: лобби-игрок при смене сцены уничтожен.
+			if (NetworkClient.localPlayer != null
+				&& NetworkClient.localPlayer.TryGetComponent(out SaberPlayerNetwork saberPlayer))
+			{
+				saberPlayer.RequestReturnToLobby(_lobbySceneName);
 			}
 		}
 	}

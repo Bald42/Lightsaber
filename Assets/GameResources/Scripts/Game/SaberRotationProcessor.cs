@@ -10,6 +10,10 @@ namespace Lightsaber.Game
 		// Клинок ближе 30° к вертикали: по нему не понять сторону света, калибровку пропускаем.
 		private const float MIN_BLADE_HORIZONTAL = 0.5f;
 
+		// Поворот мира, умножается слева: у гироскопа Android небо по оси Z, у Unity по Y.
+		// Это факт систем координат, а не настройка, — поэтому константа, а не поле в SaberSettings.
+		private static readonly Quaternion WORLD_CORRECTION = Quaternion.Euler(90f, 0f, 0f);
+
 		private readonly SaberSettings _settings;
 		private Quaternion _calibrationYaw = Quaternion.identity;
 
@@ -51,18 +55,7 @@ namespace Lightsaber.Game
 
 		private Quaternion Uncalibrated(Quaternion rawAttitude)
 		{
-			Quaternion converted = ConvertToUnity(ApplyAxisSigns(rawAttitude));
-			return Quaternion.Euler(_settings.WorldCorrectionEuler) * converted * Quaternion.Euler(_settings.GripCorrectionEuler);
-		}
-
-		// Инверсия знака компоненты — запасной ручной инструмент, по умолчанию выключен.
-		private Quaternion ApplyAxisSigns(Quaternion raw)
-		{
-			return new Quaternion(
-				_settings.InvertX ? -raw.x : raw.x,
-				_settings.InvertY ? -raw.y : raw.y,
-				_settings.InvertZ ? -raw.z : raw.z,
-				raw.w);
+			return WORLD_CORRECTION * ConvertToUnity(rawAttitude) * Quaternion.Euler(_settings.GripCorrectionEuler);
 		}
 
 		// Гироскоп правосторонний, Unity левосторонняя — пример из документации Unity (Gyroscope).

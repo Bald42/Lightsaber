@@ -76,6 +76,16 @@ namespace Lightsaber.Network
 			PlayerIndex = index;
 		}
 
+		// Зовёт кнопка выхода на телефоне. Сцену может сменить только сервер,
+		// поэтому просьба уходит на хост через Command.
+		public void RequestReturnToLobby(string lobbySceneName)
+		{
+			if (isLocalPlayer)
+			{
+				CmdRequestReturnToLobby(lobbySceneName);
+			}
+		}
+
 		// Канал Unreliable: пакет может потеряться без ретрансляции — это ок,
 		// следующий придёт через 1/sendRateHz секунды, ждать подтверждения смысла нет.
 		[Command(channel = Channels.Unreliable)]
@@ -86,6 +96,12 @@ namespace Lightsaber.Network
 			RawUserAcceleration = userAcceleration;
 
 			_saberView?.ApplyRawAttitude(attitude);
+		}
+
+		[Command]
+		private void CmdRequestReturnToLobby(string lobbySceneName)
+		{
+			NetworkManager.singleton.ServerChangeScene(lobbySceneName);
 		}
 	}
 }
