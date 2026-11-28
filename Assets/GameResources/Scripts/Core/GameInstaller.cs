@@ -13,6 +13,7 @@ namespace Lightsaber.Core
 	public class GameInstaller : MonoInstaller
 	{
 		[SerializeField] private SaberSettings _saberSettings;
+		[SerializeField] private DroneSettings _droneSettings;
 
 		public override void InstallBindings()
 		{
@@ -34,6 +35,10 @@ namespace Lightsaber.Core
 			// Настройки меча и реестр активных мечей (Lightsaber.Game)
 			Container.BindInstance(_saberSettings).AsSingle();
 			Container.BindInterfacesAndSelfTo<SaberPlayerRegistry>().AsSingle();
+
+			// Настройки дуэли с дроном (Lightsaber.Game)
+			Container.BindInstance(_droneSettings).AsSingle();
+			Container.BindInterfacesAndSelfTo<DroneDuelManager>().AsSingle();
 
 			// 4. Биндим AppLauncherReadOnly ПОСЛЕДНИМ
 			// Он гарантированно вызовется после того, как заинитятся все менеджеры выше

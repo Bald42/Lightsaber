@@ -12,10 +12,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 11293230d4e600b41afa7e145a784ada, type: 3}
   m_Name: SaberSettings
   m_EditorClassIdentifier: 
-  <WorldCorrectionEuler>k__BackingField: {x: 90, y: 0, z: 0}
   <GripCorrectionEuler>k__BackingField: {x: 0, y: 180, z: 0}
   <CalibrationTargetYaw>k__BackingField: 0
-  <NeutralTilt>k__BackingField: 0
-  <InvertX>k__BackingField: 0
-  <InvertY>k__BackingField: 0
-  <InvertZ>k__BackingField: 0
