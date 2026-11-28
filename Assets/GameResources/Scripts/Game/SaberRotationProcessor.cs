@@ -22,9 +22,9 @@ namespace Lightsaber.Game
 			_settings = settings;
 		}
 
-		public Quaternion Process(Quaternion rawAttitude)
+		public Quaternion Process(Quaternion rawAttitude, Vector3 rawRotationRate)
 		{
-			return _calibrationYaw * Uncalibrated(rawAttitude);
+			return _calibrationYaw * Uncalibrated(Predict(rawAttitude, rawRotationRate));
 		}
 
 		// Калибровка меняет только поворот вокруг вертикали (docs/features/4_SaberRotation.md, п.4).
@@ -51,6 +51,16 @@ namespace Lightsaber.Game
 		public void ResetCalibration()
 		{
 			_calibrationYaw = Quaternion.identity;
+		}
+
+		// rotationRate — угловая скорость в своей же (сырой) системе координат телефона, поэтому
+		// довороток умножается справа, как и поправка хвата (та же логика: поворот в локальных
+		// осях — справа). Калибровки это не касается: Calibrate() берёт нетронутый raw attitude.
+		private Quaternion Predict(Quaternion rawAttitude, Vector3 rawRotationRate)
+		{
+			float angleDegrees = rawRotationRate.magnitude * Mathf.Rad2Deg * _settings.PredictionSeconds;
+			Quaternion delta = Quaternion.AngleAxis(angleDegrees, rawRotationRate.normalized);
+			return rawAttitude * delta;
 		}
 
 		private Quaternion Uncalibrated(Quaternion rawAttitude)

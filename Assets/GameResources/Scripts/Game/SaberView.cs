@@ -6,6 +6,10 @@ namespace Lightsaber.Game
 	// Телефон и клинок — одна деталь (рукоять + лезвие), крутится целиком по пересчитанному
 	// повороту. Живёт на хосте: SaberPlayerNetwork инстанциирует этот объект и сразу после
 	// инъекции зовёт Register().
+	// Поворот применяется не в момент прихода сетевого пакета (ApplyRawAttitude только
+	// запоминает цель), а каждый FixedUpdate через kinematic Rigidbody.MoveRotation со
+	// сглаживанием — так дёргания от неравномерных пакетов сети не долетают до картинки.
+	[RequireComponent(typeof(Rigidbody))]
 	public class SaberView : MonoBehaviour
 	{
 		public Quaternion LastRawAttitude { get; private set; } = Quaternion.identity;
@@ -20,12 +24,20 @@ namespace Lightsaber.Game
 		[SerializeField] private Transform _bladeTransform;
 
 		private const float TRANSIENT_HINT_SECONDS = 2f;
+
+		// Первые пакеты после Input.gyro.enabled = true (SaberPlayerNetwork) гироскоп ещё не
+		// устоялся (сенсор-фьюжн Android не успевает сойтись) — калибровка по ним вслепую
+		// может промахнуться. Ждём немного перед первой попыткой автокалибровки.
+		private const float AUTO_CALIBRATION_DELAY_SECONDS = 0.3f;
 		private const string NOT_CALIBRATED_HINT = "Не откалибровано: телефон на стол экраном вверх, " +
 			"динамиком к монитору, пробел (кликни в окно Game) или Calibrate в читах";
 		private const string FAILED_HINT = "Калибровка не прошла: клинок почти вертикальный, положи телефон на стол";
 		private const string SUCCESS_HINT = "Откалибровано";
 
 		private SaberRotationProcessor _processor;
+		private Rigidbody _rigidbody;
+		private bool _hasAutoCalibrated;
+		private float _firstPacketTime = -1f;
 		private GUIStyle _hintStyle;
 		private string _transientHint;
 		private float _transientHintUntil;
@@ -33,6 +45,23 @@ namespace Lightsaber.Game
 		private void OnDestroy()
 		{
 			_registry?.Unregister(this);
+		}
+
+		// Поворот живёт здесь, а не в Update: двигаем kinematic Rigidbody через MoveRotation,
+		// это должно происходить в шаге физики. Заодно даёт постоянный dt для сглаживания,
+		// не зависящий от FPS хоста.
+		private void FixedUpdate()
+		{
+			if (IsFrozen)
+			{
+				return;
+			}
+
+			_rigidbody ??= GetComponent<Rigidbody>();
+
+			float maxDelta = _settings.SmoothingDegreesPerSecond * Time.fixedDeltaTime;
+			Quaternion smoothed = Quaternion.RotateTowards(transform.rotation, LastProcessedRotation, maxDelta);
+			_rigidbody.MoveRotation(smoothed);
 		}
 
 		// Временное упрощение теста калибровки: пробел на хосте — тот же эффект, что кнопка
@@ -103,20 +132,30 @@ namespace Lightsaber.Game
 			_transientHintUntil = 0f;
 		}
 
-		public void ApplyRawAttitude(Quaternion rawAttitude)
+		public void ApplyRawAttitude(Quaternion rawAttitude, Vector3 rotationRate)
 		{
 			_processor ??= new SaberRotationProcessor(_settings);
 
 			LastRawAttitude = rawAttitude;
-			LastProcessedRotation = _processor.Process(rawAttitude);
 
-			if (IsFrozen)
+			// Автокалибровка (docs/IDEAS.md, "Калибровка автоматически на старте"): считаем, что
+			// телефон в этот момент лежит в позе 1, и калибруемся сами, без пробела/чита. Ждём
+			// AUTO_CALIBRATION_DELAY_SECONDS с первого пакета — даём гироскопу устояться. Одна
+			// попытка: не получилось — дальше калибровка только руками.
+			if (!_hasAutoCalibrated)
 			{
-				return;
+				if (_firstPacketTime < 0f)
+				{
+					_firstPacketTime = Time.time;
+				}
+				else if (Time.time - _firstPacketTime >= AUTO_CALIBRATION_DELAY_SECONDS)
+				{
+					_hasAutoCalibrated = true;
+					Calibrate();
+				}
 			}
 
-			// Телефон и меч — один жёсткий объект, крутим всю модельку целиком.
-			transform.rotation = LastProcessedRotation;
+			LastProcessedRotation = _processor.Process(rawAttitude, rotationRate);
 		}
 
 		// Прячет визуал "телефонной" части (корпус + ScreenFace); клинок остаётся виден

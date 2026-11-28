@@ -15,5 +15,16 @@ namespace Lightsaber.Game
 
 		// Куда смотрит клинок после калибровки, градусы вокруг вертикали. 0 — в экран, от камеры.
 		[field: SerializeField] public float CalibrationTargetYaw { get; set; }
+
+		// Сглаживание (SaberView.FixedUpdate): максимальная угловая скорость доворота к новой
+		// цели, градусов в секунду. Срезает дребезг от неравномерных пакетов сети, но ниже
+		// скорости реального взмаха мечом быть не должна — иначе появится вязкость/задержка.
+		// Подбирается вживую.
+		[field: SerializeField] public float SmoothingDegreesPerSecond { get; set; } = 720f;
+
+		// Предсказание (SaberRotationProcessor): на сколько секунд вперёд доворачиваем сырой
+		// attitude по текущей угловой скорости (rotationRate) — компенсация сетевой задержки
+		// (40-70мс, см. DEVLOG). 0 — предсказание выключено. Подбирается вживую.
+		[field: SerializeField] public float PredictionSeconds { get; set; } = 0.05f;
 	}
 }

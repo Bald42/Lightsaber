@@ -95,7 +95,7 @@ namespace Lightsaber.Network
 			RawRotationRate = rotationRate;
 			RawUserAcceleration = userAcceleration;
 
-			_saberView?.ApplyRawAttitude(attitude);
+			_saberView?.ApplyRawAttitude(attitude, rotationRate);
 		}
 
 		[Command]
